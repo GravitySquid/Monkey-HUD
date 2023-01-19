@@ -6,6 +6,7 @@
 // ---------------------------------------------
 // 20190310  Justin Bannerman      Orig
 // 20220618  Justin Bannerman      Version 3
+// 20230119  Justin Bannerman      Version 4 - add deal map
 // ****************************************************************************
 using System;
 using System.Linq;
@@ -38,8 +39,8 @@ namespace cAlgo
         [Parameter("Show candle patterns", DefaultValue = false)]
         public bool ShowPatterns { get; set; }
 
-        [Parameter("Death screen of excessive risk", DefaultValue = true)]
-        public bool DeathScreen { get; set; }
+        [Parameter("Show deal map", DefaultValue = true)]
+        public bool ShowDealMap { get; set; }
 
         [Parameter("Max Risk", DefaultValue = 2.0, Step = 0.1)]
         public double MaxRisk { get; set; }
@@ -90,7 +91,6 @@ namespace cAlgo
 
             bal = account.Balance;
 
-
             // Get Open positions
             foreach (var position in Positions)
             {
@@ -100,6 +100,12 @@ namespace cAlgo
                     totPips += Math.Abs((double)Symbol.Ask - position.EntryPrice) / Symbol.PipSize;
                     if (position.EntryTime < dt)
                         dt = position.EntryTime.ToLocalTime();
+                    Color dmLineColor = Color.LimeGreen;
+                    if (position.NetProfit < 0) dmLineColor = Color.OrangeRed;
+                    if (ShowDealMap)
+                    {
+                        Chart.DrawTrendLine("dm_pos_" + numPos.ToString(), position.EntryTime, position.EntryPrice, Bars.LastBar.OpenTime, Bars.ClosePrices.Last(), dmLineColor, 2);
+                    }
                 }
             }
 
@@ -257,11 +263,9 @@ namespace cAlgo
                 if (MorningStarReversalPattern(index))
                     // && Bars.ClosePrices[index] < TrendMA.Result[index])
                     Chart.DrawIcon(reversalName, ChartIconType.Star, index - 1, (Bars.LowPrices[index - 1] - 0.0004), Color.Cyan);
-
             }
 
         }
-
 
         // ==============================
         // Candle identification routines
