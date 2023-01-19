@@ -112,7 +112,7 @@ namespace cAlgo
                     if (position.NetProfit < 0) dmLineColor = Color.OrangeRed;
                     if (ShowDealMap)
                     {
-                        Chart.DrawTrendLine("dm_pos_" + numPos.ToString(), position.EntryTime, position.EntryPrice, Bars.LastBar.OpenTime, Bars.ClosePrices.Last(), dmLineColor, 2);
+                        Chart.DrawTrendLine("dm_pos_" + numPos.ToString(), position.EntryTime, Bars.MedianPrices[Bars.OpenTimes.GetIndexByTime(position.EntryTime)] , Bars.LastBar.OpenTime, Bars.ClosePrices.Last(), dmLineColor, 2);
                     }
                 }
             }
