@@ -91,6 +91,14 @@ namespace cAlgo
 
             bal = account.Balance;
 
+            // Remove any old deal map lines
+            foreach (var obj in Chart.Objects)
+            {
+                if (obj == null) continue;
+                if (obj.Name.Contains("dm_pos_"))
+                    Chart.RemoveObject(obj.Name);
+            }
+
             // Get Open positions
             foreach (var position in Positions)
             {
