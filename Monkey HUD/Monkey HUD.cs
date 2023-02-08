@@ -30,23 +30,23 @@ namespace cAlgo
         [Parameter("Show BUY/SELL bias", DefaultValue = false)]
         public bool ShowBuySell { get; set; }
 
+        [Parameter("Text Colour", DefaultValue = "Gold")]
+        public string MainTextColor { get; set; }
+
         [Parameter("Status Font Size", DefaultValue = 16, MinValue = 8, MaxValue = 22, Step = 2)]
         public int StatusFontSize { get; set; }
 
         [Parameter("Status y pos ATRs", DefaultValue = 1.25, MinValue = 0, MaxValue = 3, Step = 0.1)]
         public double StatusyPosATRs { get; set; }
 
-        [Parameter("Show candle patterns", DefaultValue = false)]
-        public bool ShowPatterns { get; set; }
+        //[Parameter("Show candle patterns", DefaultValue = false)]
+        //public bool ShowPatterns { get; set; }
 
         [Parameter("Show deal map", DefaultValue = true)]
         public bool ShowDealMap { get; set; }
 
-        [Parameter("Max Risk", DefaultValue = 2.0, Step = 0.1)]
-        public double MaxRisk { get; set; }
-
-        public Color mainTextColor = Color.DarkGray;
         private AverageTrueRange atr;
+        private Color mainTextColor;
         private double ATRPips, spread, bal;
         private double dailyStartingBalance, dailyProfitLossPerc, dailyprofitLossAmt;
         private IAccount account;
@@ -80,6 +80,8 @@ namespace cAlgo
 
             dailyprofitLossAmt = 0;
             dailyProfitLossPerc = 0;
+            mainTextColor = Color.FromName(MainTextColor);
+            if (mainTextColor == Color.Empty) mainTextColor = Chart.ColorSettings.ForegroundColor;
         }
 
         public override void Calculate(int index)
@@ -105,14 +107,14 @@ namespace cAlgo
                 if (position.SymbolName.Equals(Symbol.Name.ToString()))
                 {
                     numPos++;
-                    totPips += Math.Abs((double)Symbol.Ask - position.EntryPrice) / Symbol.PipSize;
+                    totPips += position.Pips;
                     if (position.EntryTime < dt)
                         dt = position.EntryTime.ToLocalTime();
                     Color dmLineColor = Color.LimeGreen;
                     if (position.NetProfit < 0) dmLineColor = Color.OrangeRed;
                     if (ShowDealMap)
                     {
-                        Chart.DrawTrendLine("dm_pos_" + numPos.ToString(), position.EntryTime, Bars.MedianPrices[Bars.OpenTimes.GetIndexByTime(position.EntryTime)] , Bars.LastBar.OpenTime, Bars.ClosePrices.Last(), dmLineColor, 2);
+                        Chart.DrawTrendLine("dm_pos_" + numPos.ToString(), position.EntryTime, position.EntryPrice, Bars.LastBar.OpenTime, Bars.ClosePrices.Last(), dmLineColor, 2);
                     }
                 }
             }
@@ -132,17 +134,8 @@ namespace cAlgo
                 if (totNetPL < 0)
                     posColor = Color.OrangeRed;
 
-                //ct = Chart.DrawText("ct", totNetPL.ToString("+0.000%;-0.000%;0.000%") + "\n" + totPips.ToString("0.0") + " Pips\n" + timeOpen, Chart.LastVisibleBarIndex + 1, yPos, posColor);
-                ct = Chart.DrawText("ct", totNetPL.ToString("+0.000%;-0.000%;0.000%") + "\n" + timeOpen, Chart.LastVisibleBarIndex + 1, yPos, posColor);
+                ct = Chart.DrawText("ct", totNetPL.ToString("+0.000%;-0.000%;0.000%") + "\n" + totPips.ToString("0.0") + " Pips\n" + timeOpen, Chart.LastVisibleBarIndex + 1, yPos, posColor);
                 ct.FontSize = StatusFontSize;
-                if (totNetPL < (MaxRisk * -1))
-                {
-                    Chart.ColorSettings.BackgroundColor = Color.Red;
-                }
-                else
-                {
-                    Chart.ColorSettings.BackgroundColor = Color.FromHex("FF141417");
-                }
             }
             ct.HorizontalAlignment = HorizontalAlignment.Right;
             ct.VerticalAlignment = VerticalAlignment.Top;
@@ -248,30 +241,29 @@ namespace cAlgo
                 Chart.DrawStaticText("ACT", "\n\n" + actionText, VerticalAlignment.Top, HorizontalAlignment.Center, actionColor);
 
 
-
             var arrowName = string.Format("arrow {0}", index);
             var reversalName = string.Format("reversal {0}", index);
 
-            if (ShowPatterns)
-            {
-                // Check Bullish Engulfing
-                //if (BullishEngulfingCandle(index) && Bars.ClosePrices[index] > TrendMa.Result[index])
-                if (BullishEngulfingCandle(index))
-                    Chart.DrawIcon(arrowName, ChartIconType.UpArrow, index, (Bars.LowPrices[index] - 0.0002), Color.LimeGreen);
+            //if (ShowPatterns)
+            //{
+            //    // Check Bullish Engulfing
+            //    //if (BullishEngulfingCandle(index) && Bars.ClosePrices[index] > TrendMa.Result[index])
+            //    if (BullishEngulfingCandle(index))
+            //        Chart.DrawIcon(arrowName, ChartIconType.UpArrow, index, (Bars.LowPrices[index] - 0.0002), Color.LimeGreen);
 
-                // Check Bearish Engulfing
-                //if (BearishEngulfingCandle(index) && Bars.ClosePrices[index] < TrendMa.Result[index])
-                if (BearishEngulfingCandle(index))
-                    Chart.DrawIcon(arrowName, ChartIconType.DownArrow, index, (Bars.HighPrices[index] + 0.0002), Color.Salmon);
+            //    // Check Bearish Engulfing
+            //    //if (BearishEngulfingCandle(index) && Bars.ClosePrices[index] < TrendMa.Result[index])
+            //    if (BearishEngulfingCandle(index))
+            //        Chart.DrawIcon(arrowName, ChartIconType.DownArrow, index, (Bars.HighPrices[index] + 0.0002), Color.Salmon);
 
-                // Check reversals
-                if (EveningStarReversalPattern(index))
-                    // && Bars.ClosePrices[index] > TrendMA.Result[index])
-                    Chart.DrawIcon(reversalName, ChartIconType.Star, index - 1, (Bars.HighPrices[index - 1] + 0.0004), Color.Cyan);
-                if (MorningStarReversalPattern(index))
-                    // && Bars.ClosePrices[index] < TrendMA.Result[index])
-                    Chart.DrawIcon(reversalName, ChartIconType.Star, index - 1, (Bars.LowPrices[index - 1] - 0.0004), Color.Cyan);
-            }
+            //    // Check reversals
+            //    if (EveningStarReversalPattern(index))
+            //        // && Bars.ClosePrices[index] > TrendMA.Result[index])
+            //        Chart.DrawIcon(reversalName, ChartIconType.Star, index - 1, (Bars.HighPrices[index - 1] + 0.0004), Color.Cyan);
+            //    if (MorningStarReversalPattern(index))
+            //        // && Bars.ClosePrices[index] < TrendMA.Result[index])
+            //        Chart.DrawIcon(reversalName, ChartIconType.Star, index - 1, (Bars.LowPrices[index - 1] - 0.0004), Color.Cyan);
+            //}
 
         }
 
