@@ -15,6 +15,7 @@ using cAlgo.API;
 using cAlgo.API.Internals;
 using cAlgo.API.Indicators;
 using cAlgo.Indicators;
+using System.Reflection.PortableExecutable;
 
 namespace cAlgo
 {
@@ -30,7 +31,7 @@ namespace cAlgo
         [Parameter("Show BUY/SELL bias", DefaultValue = false)]
         public bool ShowBuySell { get; set; }
 
-        [Parameter("Text Colour", DefaultValue = "Gold")]
+        [Parameter("Text Colour", DefaultValue = "DarkGray")]
         public string MainTextColor { get; set; }
 
         [Parameter("Status Font Size", DefaultValue = 16, MinValue = 8, MaxValue = 22, Step = 2)]
@@ -50,14 +51,27 @@ namespace cAlgo
         private double ATRPips, spread, bal;
         private double dailyStartingBalance, dailyProfitLossPerc, dailyprofitLossAmt;
         private IAccount account;
-        private MovingAverage EMAW1, EMAD1, EMAH8, EMAH4, EMAH1, EMAM15, TrendMA;
+        private MovingAverage EMAW1, EMAD1, EMAH8, EMAH4, EMAH1, EMAM15, EMAM5, TrendMA;
         private AverageDirectionalMovementIndexRating ADX;
         private readonly string uparrow = "▲";
         private readonly string downarrow = "▼";
         private const int adxPeriods = 13;
+        public string BotVersion = "";
+        public const string Expirydate = "31/12/2023";
+        public bool _enabled = true;
 
         protected override void Initialize()
         {
+            Version version = this.Application.Version;
+            BotVersion = String.Format("Version: {0}.{1}.{2}.{3}", version.Major, version.Minor, version.Build, version.Revision);
+            Print(BotVersion + " (Expires " + Expirydate + ")");
+            if (DateTime.Now.Date > DateTime.Parse(Expirydate))
+            {
+                Print("This version of the HUD has expired. Please update to the latest version.");
+                _enabled= false;
+                return;
+            }
+
             account = this.Account;
 
             // Set up Data series & ATRs
@@ -68,6 +82,7 @@ namespace cAlgo
             EMAH4 = Indicators.ExponentialMovingAverage(MarketData.GetBars(TimeFrame.Hour4).ClosePrices, EMAPeriods);
             EMAH1 = Indicators.ExponentialMovingAverage(MarketData.GetBars(TimeFrame.Hour).ClosePrices, EMAPeriods);
             EMAM15 = Indicators.ExponentialMovingAverage(MarketData.GetBars(TimeFrame.Minute15).ClosePrices, EMAPeriods);
+            EMAM5 = Indicators.ExponentialMovingAverage(MarketData.GetBars(TimeFrame.Minute5).ClosePrices, EMAPeriods);
             TrendMA = Indicators.MovingAverage(Bars.ClosePrices, 200, MovingAverageType.Exponential);
             ADX = Indicators.AverageDirectionalMovementIndexRating(adxPeriods);
 
@@ -86,6 +101,8 @@ namespace cAlgo
 
         public override void Calculate(int index)
         {
+            if(!_enabled) return;
+
             Color posColor = Color.LimeGreen;
             double totNetPL = 0.0, yPos, totPips = 0.0, numPos = 0;
             DateTime dt = DateTime.Now;
@@ -114,7 +131,7 @@ namespace cAlgo
                     if (position.NetProfit < 0) dmLineColor = Color.OrangeRed;
                     if (ShowDealMap)
                     {
-                        Chart.DrawTrendLine("dm_pos_" + numPos.ToString(), position.EntryTime, position.EntryPrice, Bars.LastBar.OpenTime, Bars.ClosePrices.Last(), dmLineColor, 2);
+                        Chart.DrawTrendLine("dm_pos_" + numPos.ToString(), position.EntryTime, position.EntryPrice, Bars.LastBar.OpenTime, Bars.ClosePrices.Last(), dmLineColor, 1);
                     }
                 }
             }
@@ -152,12 +169,12 @@ namespace cAlgo
             if (Bars.LowPrices.LastValue > EMAW1.Result.LastValue)
             {
                 direction = uparrow;
-                upCount++;
+                //upCount++;
             }
             if (Bars.HighPrices.LastValue < EMAW1.Result.LastValue)
             {
                 direction = downarrow;
-                downCount++;
+                //downCount++;
             }
             EMAText += direction + " D1";
             direction = "x";
@@ -219,15 +236,27 @@ namespace cAlgo
                 direction = downarrow;
                 downCount++;
             }
+            EMAText += direction + " M5";
+            direction = "x";
+            if (Bars.LowPrices.LastValue > EMAM5.Result.LastValue)
+            {
+                direction = uparrow;
+                upCount++;
+            }
+            if (Bars.HighPrices.LastValue < EMAM5.Result.LastValue)
+            {
+                direction = downarrow;
+                downCount++;
+            }
             EMAText += direction;
             Color actionColor = Color.Bisque;
             string actionText = "No Trend consensus";
-            if (upCount > 3)
+            if (upCount >= 3)
             {
                 actionText = "=BUY=";
                 actionColor = Color.LimeGreen;
             }
-            if (downCount > 3)
+            if (downCount >= 3)
             {
                 actionText = "=SELL=";
                 actionColor = Color.OrangeRed;
