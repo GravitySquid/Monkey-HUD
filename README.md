@@ -2,17 +2,17 @@
 cTrader HUD (Heads-up-display) with deal map.
 
 Statistics shown:
-- Daily % profit
+* Daily % profit
 * ATR
 * ADX
 * Current Spread
-+ EMA 50 over several timeframes
+* EMA 50 over several timeframes
 
 For open tades, displays:
-- % gain/loss
+* % gain/loss
 * pips gain/loss
 * Time trade open
-+ Deal map
+* Deal map
 
 
 
