@@ -1,5 +1,6 @@
 # Monkey-HUD
-cTrader HUD (Heads-up-display) with deal map
+cTrader HUD (Heads-up-display) with deal map.
+
 Statistics shown:
 - Daily % profit
 * ATR
