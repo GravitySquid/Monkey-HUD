@@ -6,6 +6,7 @@ cTrader HUD (Heads-up-display) with deal map
 * ADX
 * Current Spread
 + EMA 50 over several timeframes
+
 ##For open tades, displays:
 - % gain/loss
 * pips gain/loss
