@@ -6,6 +6,7 @@ Stats on:
   * ADX
   * Current Spread
   * EMA 50 over several timeframes
+
 Also, for open tades, displays:
 * % gain/loss
 * pips gain/loss
