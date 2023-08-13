@@ -251,15 +251,28 @@ namespace cAlgo
             EMAText += direction;
             Color actionColor = Color.Bisque;
             string actionText = "No Trend consensus";
-            if (upCount >= 3)
+            if (upCount >= 3 && upCount > downCount)
             {
-                actionText = "=BUY=";
+                actionText = "=Look for BUY=";
                 actionColor = Color.LimeGreen;
             }
-            if (downCount >= 3)
+            if (downCount >= 3 && upCount < downCount)
             {
-                actionText = "=SELL=";
+                actionText = "=Look for SELL=";
                 actionColor = Color.OrangeRed;
+            }
+            if (Chart.TimeFrame <= TimeFrame.Minute15)
+            {
+                if (Bars.HighPrices.LastValue < EMAH1.Result.LastValue && Bars.HighPrices.LastValue < EMAH4.Result.LastValue)
+                {
+                    actionText = "=On " + Chart.TimeFrame.ShortName + " Look for SELL=";
+                    actionColor = Color.OrangeRed;
+                }
+                if (Bars.LowPrices.LastValue > EMAH1.Result.LastValue && Bars.LowPrices.LastValue > EMAH4.Result.LastValue)
+                {
+                    actionText = "=On " + Chart.TimeFrame.ShortName + " Look for BUY=";
+                    actionColor = Color.LimeGreen;
+                }
             }
 
 
