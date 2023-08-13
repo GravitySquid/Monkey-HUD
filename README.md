@@ -1,12 +1,12 @@
 # Monkey-HUD
 cTrader HUD (Heads-up-display) with deal map
-Stats on:
+##Statistics shown:
 - Daily % profit
 * ATR
 * ADX
 * Current Spread
 + EMA 50 over several timeframes
-Also, for open tades, displays:
+##For open tades, displays:
 - % gain/loss
 * pips gain/loss
 * Time trade open
