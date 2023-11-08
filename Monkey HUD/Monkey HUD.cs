@@ -16,6 +16,7 @@ using cAlgo.API.Internals;
 using cAlgo.API.Indicators;
 using cAlgo.Indicators;
 using System.Reflection.PortableExecutable;
+using System.ComponentModel;
 
 namespace cAlgo
 {
@@ -40,6 +41,12 @@ namespace cAlgo
         [Parameter("Status y pos ATRs", DefaultValue = 1.25, MinValue = 0, MaxValue = 3, Step = 0.1)]
         public double StatusyPosATRs { get; set; }
 
+        [Parameter("Daily Cutover Hour", DefaultValue = 1, MinValue = 0, MaxValue = 24)]
+        public int DailyCutoverHour { get; set; }
+
+        //[Parameter("Show Daily Bias", DefaultValue = false)]
+        //public bool ShowDailyBias { get; set; }
+
         //[Parameter("Show candle patterns", DefaultValue = false)]
         //public bool ShowPatterns { get; set; }
 
@@ -56,6 +63,7 @@ namespace cAlgo
         private readonly string uparrow = "▲";
         private readonly string downarrow = "▼";
         private const int adxPeriods = 13;
+        private DateTime balDate;
         public string BotVersion = "";
         public const string Expirydate = "31/12/2023";
         public bool _enabled = true;
@@ -73,6 +81,10 @@ namespace cAlgo
             }
 
             account = this.Account;
+            double PDH = MarketData.GetBars(TimeFrame.Daily).Last(1).High;
+            double PPDH = MarketData.GetBars(TimeFrame.Daily).Last(2).High;
+            double PDL = MarketData.GetBars(TimeFrame.Daily).Last(1).Low;
+            double PPDL = MarketData.GetBars(TimeFrame.Daily).Last(2).Low;
 
             // Set up Data series & ATRs
             atr = Indicators.AverageTrueRange(Period, MovingAverageType.Simple);
@@ -86,21 +98,32 @@ namespace cAlgo
             TrendMA = Indicators.MovingAverage(Bars.ClosePrices, 200, MovingAverageType.Exponential);
             ADX = Indicators.AverageDirectionalMovementIndexRating(adxPeriods);
 
-            // Find the account balance at the end of previous day (23:59:59)
-            DateTime yesterday = Time.AddDays(-1).Date;
-            TimeSpan ts = new TimeSpan(23, 59, 59);
-            yesterday = yesterday.Date + ts;
-            HistoricalTrade trade = History.LastOrDefault(x => x.ClosingTime <= yesterday);
+            // Find the account balance at 01:00:00am
+            DateTime today = Time.ToLocalTime().Date;
+            //Print("LocalTime Date {0}", today);
+            TimeSpan ts = new TimeSpan(DailyCutoverHour, 0, 0);
+            today = today.Date + ts;
+            //Print("LocalTime 01:00 {0}", today);
+            
+            HistoricalTrade trade = History.LastOrDefault(x => x.ClosingTime.ToLocalTime() <= today);
             dailyStartingBalance = trade != null ? trade.Balance : Account.Balance;
 
             dailyprofitLossAmt = 0;
             dailyProfitLossPerc = 0;
             mainTextColor = Color.FromName(MainTextColor);
             if (mainTextColor == Color.Empty) mainTextColor = Chart.ColorSettings.ForegroundColor;
+            //if (ShowDailyBias)
+            //{
+            //    Chart.DrawHorizontalLine("PrevDailyHigh", PDH, Color.LightSeaGreen,2);
+            //    Chart.DrawHorizontalLine("PrevDailyLow", PDL, Color.LightSalmon, 2);
+            //    //Chart.DrawHorizontalLine("PrevPrevDailyHigh", PPDH, Color.LightSeaGreen, 1,LineStyle.DotsRare);
+            //    //Chart.DrawHorizontalLine("PrevPrevDailyLow", PPDL, Color.LightSalmon, 1, LineStyle.DotsRare);
+            //}
         }
 
         public override void Calculate(int index)
         {
+
             if(!_enabled) return;
 
             Color posColor = Color.LimeGreen;
@@ -141,8 +164,8 @@ namespace cAlgo
             if (numPos > 0)
             {
                 totPips = totPips / numPos;
-                TimeSpan ts = DateTime.Now.Subtract(dt);
-                timeOpen = ts.Hours.ToString("00") + ":" + ts.Minutes.ToString("00") + ":" + ts.Seconds.ToString("00");
+                TimeSpan tt = DateTime.Now.Subtract(dt);
+                timeOpen = tt.Hours.ToString("00") + ":" + tt.Minutes.ToString("00") + ":" + tt.Seconds.ToString("00");
 
                 // Display NetPL % on open trades. 
                 totNetPL = Symbol.UnrealizedNetProfit / bal;
@@ -159,6 +182,14 @@ namespace cAlgo
 
             ATRPips = atr.Result.LastValue / Symbol.PipSize;
             spread = Symbol.Spread / Symbol.PipSize;
+           
+            // Find the account balance at 01:00:00am
+            DateTime today = Time.ToLocalTime().Date;
+            TimeSpan ts = new TimeSpan(DailyCutoverHour, 0, 0);
+            today = today.Date + ts;
+            HistoricalTrade trade = History.LastOrDefault(x => x.ClosingTime.ToLocalTime() <= today);
+            dailyStartingBalance = trade != null ? trade.Balance : Account.Balance;
+
             dailyprofitLossAmt = Account.Balance - dailyStartingBalance;
             dailyProfitLossPerc = (Account.Balance - dailyStartingBalance) / dailyStartingBalance * 100;
 
@@ -281,6 +312,11 @@ namespace cAlgo
             Chart.DrawStaticText("DIR", "\n" + "EMA" + EMAPeriods.ToString() + "   " + EMAText, VerticalAlignment.Top, HorizontalAlignment.Center, mainTextColor);
             if (ShowBuySell)
                 Chart.DrawStaticText("ACT", "\n\n" + actionText, VerticalAlignment.Top, HorizontalAlignment.Center, actionColor);
+            actionText = "";
+            if (Symbol.Spread > 2.5)
+                actionText = "CHECK SPREAD! ";
+            if (actionText != "")
+                Chart.DrawStaticText("SPREAD", "\n\n\n" + actionText, VerticalAlignment.Top, HorizontalAlignment.Center, Color.OrangeRed);
 
 
             var arrowName = string.Format("arrow {0}", index);
