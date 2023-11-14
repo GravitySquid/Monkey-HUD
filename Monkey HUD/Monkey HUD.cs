@@ -17,6 +17,7 @@ using cAlgo.API.Indicators;
 using cAlgo.Indicators;
 using System.Reflection.PortableExecutable;
 using System.ComponentModel;
+using System.Diagnostics;
 
 namespace cAlgo
 {
@@ -76,7 +77,7 @@ namespace cAlgo
             if (DateTime.Now.Date > DateTime.Parse(Expirydate))
             {
                 Print("This version of the HUD has expired. Please update to the latest version.");
-                _enabled= false;
+                _enabled = false;
                 return;
             }
 
@@ -99,14 +100,37 @@ namespace cAlgo
             ADX = Indicators.AverageDirectionalMovementIndexRating(adxPeriods);
 
             // Find the account balance at 01:00:00am
-            DateTime today = Time.ToLocalTime().Date;
-            //Print("LocalTime Date {0}", today);
+            DateTime startOfToday = Time.ToLocalTime().Date;
             TimeSpan ts = new TimeSpan(DailyCutoverHour, 0, 0);
-            today = today.Date + ts;
-            //Print("LocalTime 01:00 {0}", today);
-            
-            HistoricalTrade trade = History.LastOrDefault(x => x.ClosingTime.ToLocalTime() <= today);
-            dailyStartingBalance = trade != null ? trade.Balance : Account.Balance;
+            startOfToday = startOfToday.Date + ts;
+            DateTime tomorrow = startOfToday.AddDays(1);
+            Print("Start of day - LocalTime {0}", startOfToday);
+
+            dailyStartingBalance = Account.Balance;
+            double prevBal = 0;
+            double todayGain = 0;
+            int cnt = 0;
+
+            foreach (var t in History.OrderByDescending(x => x.ClosingTime.ToLocalTime()))
+            {
+                // Check if trade is before start of day
+                if (t.ClosingTime.ToLocalTime() < startOfToday)
+                {
+                    dailyStartingBalance = t.Balance;
+                    prevBal = t.Balance;
+                    Print("Yesterday's Last Trade {0}, resulting balance {1}", t.ClosingTime.ToLocalTime(), t.Balance);
+                    break;
+                }
+                // Accumulate todays trades
+                todayGain += t.NetProfit;
+                cnt++;
+                Print("Todays trade #{3}: {0} gain {1} cumulative gain {2}", t.ClosingTime.ToLocalTime(), t.NetProfit, todayGain,cnt);
+            }
+            double depositWihdrawals = Account.Balance - todayGain - prevBal;
+            Print("DepositWithdraw {0} = Balance {1} - TodayGain {2} - PrevBal {3}", depositWihdrawals, Account.Balance, todayGain, prevBal);
+            dailyStartingBalance += depositWihdrawals;
+            Print("Daily Starting Balance = {0}", dailyStartingBalance);
+
 
             dailyprofitLossAmt = 0;
             dailyProfitLossPerc = 0;
@@ -124,7 +148,7 @@ namespace cAlgo
         public override void Calculate(int index)
         {
 
-            if(!_enabled) return;
+            if (!_enabled) return;
 
             Color posColor = Color.LimeGreen;
             double totNetPL = 0.0, yPos, totPips = 0.0, numPos = 0;
@@ -182,13 +206,23 @@ namespace cAlgo
 
             ATRPips = atr.Result.LastValue / Symbol.PipSize;
             spread = Symbol.Spread / Symbol.PipSize;
-           
+
             // Find the account balance at 01:00:00am
-            DateTime today = Time.ToLocalTime().Date;
-            TimeSpan ts = new TimeSpan(DailyCutoverHour, 0, 0);
-            today = today.Date + ts;
-            HistoricalTrade trade = History.LastOrDefault(x => x.ClosingTime.ToLocalTime() <= today);
-            dailyStartingBalance = trade != null ? trade.Balance : Account.Balance;
+            //DateTime today = Time.ToLocalTime().Date;
+            //TimeSpan ts = new TimeSpan(DailyCutoverHour, 0, 0);
+            //today = today.Date + ts;
+            //DateTime tomorrow = today.AddDays(1);
+            //var todaysTrades = History.OrderBy(x => x.ClosingTime.ToLocalTime() >= today && x.ClosingTime.ToLocalTime() <= tomorrow);
+            //double todaysGains = 0;
+            //foreach (HistoricalTrade historicalTrade in todaysTrades)
+            //{
+            //    todaysGains += historicalTrade.NetProfit;
+            //}
+
+            //HistoricalTrade trade = History.LastOrDefault(x => x.ClosingTime.ToLocalTime() <= today);
+            //dailyStartingBalance = trade != null ? trade.Balance : Account.Balance;
+
+            //HistoricalTrade tradeB = History.LastOrDefault();
 
             dailyprofitLossAmt = Account.Balance - dailyStartingBalance;
             dailyProfitLossPerc = (Account.Balance - dailyStartingBalance) / dailyStartingBalance * 100;
@@ -309,6 +343,7 @@ namespace cAlgo
 
             // Top Centre, display Stats & EMA
             Chart.DrawStaticText("PROF", "Daily " + dailyProfitLossPerc.ToString("+0.00;-0.00;0.00") + "%     ATR " + ATRPips.ToString("0.0") + " Pips     ADX " + ADX.ADX.LastValue.ToString("0") + "     Spread " + spread.ToString("0.0") + " Pips", VerticalAlignment.Top, HorizontalAlignment.Center, mainTextColor);
+            //Chart.DrawStaticText("PROF", "Start Bal " + dailyStartingBalance.ToString("0.00") + " Current Bal " + Account.Balance.ToString("0.00") + " Trad Bal " + tradeB.Balance.ToString("0.00")  + " Gross " + tradeB.GrossProfit.ToString("0.00") + " Net " + tradeB.NetProfit.ToString("0.00"), VerticalAlignment.Top, HorizontalAlignment.Center, mainTextColor);
             Chart.DrawStaticText("DIR", "\n" + "EMA" + EMAPeriods.ToString() + "   " + EMAText, VerticalAlignment.Top, HorizontalAlignment.Center, mainTextColor);
             if (ShowBuySell)
                 Chart.DrawStaticText("ACT", "\n\n" + actionText, VerticalAlignment.Top, HorizontalAlignment.Center, actionColor);
